@@ -52,9 +52,8 @@ class TM(commands.Bot):
 
 class BotApp():
     def __init__(self):
-        bot = TM()
-        bot.start_bot()
         try:
-            ...
-        except Err:
-            print("Applitaction crashed")
+            bot = TM()
+            bot.start_bot()
+        except:
+            print("Application crashed")
