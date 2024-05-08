@@ -4,28 +4,23 @@ import logging
 from dotenv import load_dotenv
 import os
 from config import path
+from logger.logger import TMLogger
 
 
 
 class TM(commands.Bot):
     def __init__(self):
+        self.tm_logger = TMLogger()
         super().__init__(command_prefix="tm!", help_command=None, intents=discord.Intents.all())
 
-    async def on_ready(self):
-        """
-        Runs when the bot establishes a connection to Discord.
-        
-        This can run multiple times, although highly unlikely.
-        """
-        
+    async def on_ready(self):   
         logging.info(f"Bot connected as {self.user.name}")
     
     async def load_cogs(self):
-        for cog in os.listdir(path["cogs"]):
+        for cog in os.listdir(path["COGS"]):
             if cog.endswith(".py") == False: continue
              
             try:
-                # i[:-3] = "basic.py" -> "basic"
                 cog_name = cog[:-3]
 
                 await self.load_extension(f"cogs.{cog_name}")
@@ -33,12 +28,7 @@ class TM(commands.Bot):
             except Exception as e:
                 logging.error(f"Error loading {cog} as {cog_name}: {e}")
     
-    async def setup_hook(self):
-        """
-        Like on_ready, but only runs once, when you start the file.
-        on_ready can run multiple times, although unlikely for such a small bot.
-        """
-        
+    async def setup_hook(self): 
         await self.load_cogs()
     
     def start_bot(self):
@@ -51,10 +41,20 @@ class TM(commands.Bot):
 
         self.run(env["TOKEN"])
 
+        log = TMLogger()
+    
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        await self.tm_logger.handleMessage(message)
+
+        
+        
+
 class BotApp():
     def __init__(self):
+        bot = TM()
+        bot.start_bot()
         try:
-            bot = TM()
-            bot.start_bot()
-        except:
+            ...
+        except Err:
             print("Applitaction crashed")

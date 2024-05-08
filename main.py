@@ -1,4 +1,3 @@
-import logging
 import sys
 sys.path.append('src')
 from tm_bot import *
