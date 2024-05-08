@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 import logging
 from dotenv import load_dotenv
 import os
+from config import path
 
 load_dotenv()
 env = {
@@ -27,14 +28,17 @@ class TM(commands.Bot):
         Loads every .py file in cogs/        
         """
         
-        for i in os.listdir("cogs"):
-            if i.endswith(".py"):
-                try:
-                    # i[:-3] = "basic.py" -> "basic" => this becomes cogs.basic
-                    await self.load_extension(f"cogs.{i[:-3]}")
-                    logging.info(f"Loaded {i} as {i[:-3]}")
-                except Exception as e:
-                    logging.error(f"Error loading {i} as {i[:-3]}: {e}")
+        for cog in os.listdir(path["cogs"]):
+            if cog.endswith(".py") == False: continue
+             
+            try:
+                # i[:-3] = "basic.py" -> "basic"
+                cog_name = cog[:-3]
+
+                await self.load_extension(f"cogs.{cog_name}")
+                logging.info(f"Loaded {cog} as {cog_name}")
+            except Exception as e:
+                logging.error(f"Error loading {cog} as {cog_name}: {e}")
     
     async def setup_hook(self):
         """
