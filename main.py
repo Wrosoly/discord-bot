@@ -1,10 +1,9 @@
 import sys
 sys.path.append('src')
-from tm_bot import *
+import tm_bot
 
 def main():
-    app = BotApp()
-
+    app = tm_bot.BotApp()
 
 if __name__ == "__main__":
     main()
