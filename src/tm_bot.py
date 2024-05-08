@@ -4,13 +4,9 @@ import logging
 from dotenv import load_dotenv
 import os
 from config import path
-from logger.logger import TMLogger
-
-
 
 class TM(commands.Bot):
     def __init__(self):
-        self.tm_logger = TMLogger()
         super().__init__(command_prefix="tm!", help_command=None, intents=discord.Intents.all())
 
     async def on_ready(self):   
@@ -40,15 +36,6 @@ class TM(commands.Bot):
         }
 
         self.run(env["TOKEN"])
-
-        log = TMLogger()
-    
-    @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
-        await self.tm_logger.handleMessage(message)
-
-        
-        
 
 class BotApp():
     def __init__(self):
