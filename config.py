@@ -1,3 +1,3 @@
 path = {
-    "cogs": "cogs"
+    "cogs": "src/cogs"
 }
