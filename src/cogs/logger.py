@@ -8,25 +8,35 @@ import datetime
 class MessageLogger(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot: commands.Bot = bot
+
+        #TODO: Move to PenaltySystem cog
         ctx_menu = app_commands.ContextMenu(
             name="Üzenet törlése",
             callback=self.delete_message
         )
         print("added ctx menu")
         self.bot.tree.add_command(ctx_menu)
-    
-    @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
-        if message.author.bot: # DON'T LOG MESSAGES IF AUTHOR IS A BOT
-            return
+
+    async def loadConfig(self):
         with open("config.yaml", "r") as file: # Loads config from config.yaml
             config = yaml.safe_load(file)
             
-        channels = {
+        return  {
             "simple": await self.bot.fetch_channel(config["log"]["simple"]),
             "detailed": await self.bot.fetch_channel(config["log"]["detailed"])
         }
+    
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.bot: return
+            
+        channels = await self.loadConfig()
         
+        await MessageLogger.processSimpleMsgLog(channels["simple"], message)
+        await MessageLogger.processDetailedMsgLog(channels["detailed"], message)
+        
+    
+    async def processSimpleMsgLog(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, message : discord.message):
         # Create corresponding embeds
         simpleEmbed = discord.Embed(
             title="#" + message.channel.name,
@@ -35,19 +45,25 @@ class MessageLogger(commands.Cog):
             color=message.author.color, # Display color
             timestamp=message.created_at
         )
-        if len(message.attachments) > 0:
-            simpleEmbed.add_field(
-                name="Csatolmányok",
-                value=len(message.attachments)
-            )
-            simpleEmbed.set_image(url=message.attachments[0].url) # Only first image is shown
+
         simpleEmbed.set_footer(text="Rang: " + message.author.top_role.name)
         simpleEmbed.set_author(
             name=message.author.name,
             icon_url=message.author.avatar.url
         )
-        await channels["simple"].send(embed=simpleEmbed)
-        
+
+        if len(message.attachments) == 0: return await channel.send(embed=simpleEmbed)
+
+        attachments = []
+
+        for attachment in message.attachments:
+            file = await attachment.to_file()
+
+            attachments.append(file)
+
+        return await channel.send(embed=simpleEmbed, files=attachments)
+
+    async def processDetailedMsgLog(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, message : discord.message):
         detailedEmbed = discord.Embed(
             title=message.author.display_name + " | #" + message.channel.name,
             url=message.jump_url,
@@ -64,27 +80,33 @@ class MessageLogger(commands.Cog):
             text=message.author.id
         )
         detailedEmbed.add_field(
-            name="Csatolmányok",
-            value=len(message.attachments),
-            inline=True
-        )
-        detailedEmbed.add_field(
             name="ID-k",
             value=f"Felhasználó: `{message.author.id}`\nCsatorna: `{message.channel.id}`\nÜzenet: `{message.id}`\n[**Ugrás a csatornába**]({message.channel.jump_url})"
         )
-        await channels["detailed"].send(embed=detailedEmbed)
+
+        if len(message.attachments) == 0: return await channel.send(embed=detailedEmbed) 
+
+        attachments = []
+
+        for attachment in message.attachments:
+            file = await attachment.to_file()
+
+            attachments.append(file)
+
+        return await channel.send(embed=detailedEmbed, files=attachments)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before: discord.Message, after: discord.Message):
-        if before.author.bot: # DON'T LOG MESSAGES IF AUTHOR IS A BOT
-            return
-        with open("config.yaml", "r") as file: # Loads config from config.yaml
-            config = yaml.safe_load(file)
+        if before.author.bot: return
             
-        channels = {
-            "simple": await self.bot.fetch_channel(config["log"]["simple"]),
-            "detailed": await self.bot.fetch_channel(config["log"]["detailed"])
-        }
+        channels = await self.loadConfig()
+
+        await MessageLogger.processSimpleMsgEdit(channels["simple"], before, after)
+        await MessageLogger.processsDetailedMsgEdit(channels["detailed"], before, after)
+    
+    async def processSimpleMsgEdit(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, before: discord.Message, after: discord.Message):
+        beforeAttachments = []
+        afterAttachments = []
         
         # Create corresponding embeds
         simpleEmbed = discord.Embed(
@@ -94,12 +116,28 @@ class MessageLogger(commands.Cog):
             timestamp=after.created_at
         )
         
-        if len(after.attachments) > 0:
+        if len(before.attachments) > 0:
+            for attachment in before.attachments:
+                file = await attachment.to_file()
+
+                beforeAttachments.append(file)
+
             simpleEmbed.add_field(
-                name="Csatolmányok",
-                value=len(after.attachments)
+                name="Eredeti csatolmányok",
+                value=len(beforeAttachments),
+                inline=False
             )
-            simpleEmbed.set_image(url=after.attachments[0].url) # Only first image is shown
+
+            for attachment in after.attachments:
+                file = await attachment.to_file()
+
+                afterAttachments.append(file)
+
+            simpleEmbed.add_field(
+                name="új csatolmányok",
+                value=len(afterAttachments)
+            )
+
         
         simpleEmbed.add_field(
             name="Eredeti üzenet",
@@ -116,19 +154,25 @@ class MessageLogger(commands.Cog):
             name=after.author.name + " - Üzenet szerkesztés",
             icon_url=after.author.avatar.url
         )
-        await channels["simple"].send(embed=simpleEmbed)
-        
+        await channel.send(embed=simpleEmbed, files=beforeAttachments + afterAttachments)
+
+    async def processsDetailedMsgEdit(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, before: discord.Message, after: discord.Message):
+        beforeAttachments = []
+        afterAttachments = []
+    
         detailedEmbed = discord.Embed(
             title=after.author.display_name + " | #" + after.channel.name,
             url=after.jump_url,
             color=after.author.color, # Display color
             timestamp=after.created_at
         )
+       
         detailedEmbed.set_author(
             name=after.author.name + " - Üzenet szerkesztés",
             icon_url=after.author.avatar.url,
             url="https://discord.com/users/" + str(after.author.id)
         )
+       
         detailedEmbed.set_footer(
             text=after.author.id
         )
@@ -143,29 +187,45 @@ class MessageLogger(commands.Cog):
             value=after.content if after.content != "" else "(nincs tartalom)",
             inline=False
         )
-        detailedEmbed.add_field(
-            name="Csatolmányok",
-            value=len(after.attachments),
-            inline=True
-        )
+
+        if len(before.attachments) > 0:
+            for attachment in before.attachments:
+                file = await attachment.to_file()
+
+                beforeAttachments.append(file)
+
+            detailedEmbed.add_field(
+                name="Eredeti csatolmányok",
+                value=len(beforeAttachments),
+                inline=False
+            )
+
+            for attachment in after.attachments:
+                file = await attachment.to_file()
+
+                afterAttachments.append(file)
+
+            detailedEmbed.add_field(
+                name="új csatolmányok",
+                value=len(afterAttachments)
+            )
+
         detailedEmbed.add_field(
             name="ID-k",
             value=f"Felhasználó: `{after.author.id}`\nCsatorna: `{after.channel.id}`\nÜzenet: `{after.id}`\n[**Ugrás a csatornába**]({after.channel.jump_url})"
         )
-        await channels["detailed"].send(embed=detailedEmbed)
-    
+        await channel.send(embed=detailedEmbed, files=beforeAttachments +  afterAttachments)
+
     @commands.Cog.listener()
     async def on_message_delete(self, message: discord.Message):
-        if message.author.bot: # DON'T LOG MESSAGES IF AUTHOR IS A BOT
-            return
-        with open("config.yaml", "r") as file: # Loads config from config.yaml
-            config = yaml.safe_load(file)
-            
-        channels = {
-            "simple": await self.bot.fetch_channel(config["log"]["simple"]),
-            "detailed": await self.bot.fetch_channel(config["log"]["detailed"])
-        }
+        if message.author.bot: return
         
+        channels = await self.loadConfig()
+
+        await MessageLogger.processSimpleMsgDelete(channels["simple"], message)
+        await MessageLogger.processDetailedMsgDelete(channels["detailed"], message)
+    
+    async def processSimpleMsgDelete(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, message : discord.message):
         # Create corresponding embeds
         simpleEmbed = discord.Embed(
             title="#" + message.channel.name,
@@ -173,19 +233,25 @@ class MessageLogger(commands.Cog):
             color=message.author.color, # Display color
             timestamp=message.created_at
         )
-        if len(message.attachments) > 0:
-            simpleEmbed.add_field(
-                name="Csatolmányok",
-                value=len(message.attachments)
-            )
-            simpleEmbed.set_image(url=message.attachments[0].url) # Only first image is shown
+
         simpleEmbed.set_footer(text="Rang: " + message.author.top_role.name)
         simpleEmbed.set_author(
             name=message.author.name + " - Üzenet törlés",
             icon_url=message.author.avatar.url
         )
-        await channels["simple"].send(embed=simpleEmbed)
-        
+
+        if len(message.attachments) == 0: return await channel.send(embed=simpleEmbed)
+           
+        attachments = []
+
+        for attachment in message.attachments:
+            file = await attachment.to_file()
+
+            attachments.append(file)
+
+        return await channel.send(embed=simpleEmbed, files=attachments)
+
+    async def processDetailedMsgDelete(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, message : discord.message):
         detailedEmbed = discord.Embed(
             title=message.author.display_name + " | #" + message.channel.name,
             url=message.jump_url,
@@ -202,17 +268,24 @@ class MessageLogger(commands.Cog):
             text=message.author.id
         )
         detailedEmbed.add_field(
-            name="Csatolmányok",
-            value=len(message.attachments),
-            inline=True
-        )
-        detailedEmbed.add_field(
             name="ID-k",
             value=f"Felhasználó: `{message.author.id}`\nCsatorna: `{message.channel.id}`\nÜzenet: `{message.id}`\n[**Ugrás a csatornába**]({message.channel.jump_url})"
         )
-        await channels["detailed"].send(embed=detailedEmbed)
+        
+        if len(message.attachments) == 0: return await channel.send(embed=detailedEmbed)
+           
+        attachments = []
+
+        for attachment in message.attachments:
+            file = await attachment.to_file()
+
+            attachments.append(file)
+
+        return await channel.send(embed=detailedEmbed, files=attachments)
     
     async def delete_message(self, interaction: discord.Interaction, message: discord.Message):
+        #TODO: Move to PenaltySystem cog
+        return
         print("delete message ctx menu")
         if message.author.id != self.bot.user.id:
             if message.author.top_role < interaction.user.top_role:
