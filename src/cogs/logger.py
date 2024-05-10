@@ -368,6 +368,8 @@ class MessageLogger(commands.Cog):
         channels = await self.loadConfig()
 
         await self.processDetailedRoleUpdate(channels["role"], before, after)
+    
+    # hello world!
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(MessageLogger(bot))
