@@ -14,7 +14,6 @@ class MessageLogger(commands.Cog):
             name="Üzenet törlése",
             callback=self.delete_message
         )
-        print("added ctx menu")
         self.bot.tree.add_command(ctx_menu)
 
     async def loadConfig(self):
@@ -23,7 +22,8 @@ class MessageLogger(commands.Cog):
             
         return  {
             "simple": await self.bot.fetch_channel(config["log"]["simple"]),
-            "detailed": await self.bot.fetch_channel(config["log"]["detailed"])
+            "detailed": await self.bot.fetch_channel(config["log"]["detailed"]),
+            "role": await self.bot.fetch_channel(config["log"]["role"])
         }
     
     @commands.Cog.listener()
@@ -32,11 +32,11 @@ class MessageLogger(commands.Cog):
             
         channels = await self.loadConfig()
         
-        await MessageLogger.processSimpleMsgLog(channels["simple"], message)
-        await MessageLogger.processDetailedMsgLog(channels["detailed"], message)
+        await self.processSimpleMsgLog(channels["simple"], message)
+        await self.processDetailedMsgLog(channels["detailed"], message)
         
     
-    async def processSimpleMsgLog(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, message : discord.message):
+    async def processSimpleMsgLog(self, channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, message : discord.message):
         # Create corresponding embeds
         simpleEmbed = discord.Embed(
             title="#" + message.channel.name,
@@ -63,7 +63,7 @@ class MessageLogger(commands.Cog):
 
         return await channel.send(embed=simpleEmbed, files=attachments)
 
-    async def processDetailedMsgLog(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, message : discord.message):
+    async def processDetailedMsgLog(self, channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, message : discord.message):
         detailedEmbed = discord.Embed(
             title=message.author.display_name + " | #" + message.channel.name,
             url=message.jump_url,
@@ -101,10 +101,10 @@ class MessageLogger(commands.Cog):
             
         channels = await self.loadConfig()
 
-        await MessageLogger.processSimpleMsgEdit(channels["simple"], before, after)
-        await MessageLogger.processsDetailedMsgEdit(channels["detailed"], before, after)
+        await self.processSimpleMsgEdit(channels["simple"], before, after)
+        await self.processsDetailedMsgEdit(channels["detailed"], before, after)
     
-    async def processSimpleMsgEdit(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, before: discord.Message, after: discord.Message):
+    async def processSimpleMsgEdit(self, channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, before: discord.Message, after: discord.Message):
         beforeAttachments = []
         afterAttachments = []
         
@@ -156,7 +156,7 @@ class MessageLogger(commands.Cog):
         )
         await channel.send(embed=simpleEmbed, files=beforeAttachments + afterAttachments)
 
-    async def processsDetailedMsgEdit(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, before: discord.Message, after: discord.Message):
+    async def processsDetailedMsgEdit(self, channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, before: discord.Message, after: discord.Message):
         beforeAttachments = []
         afterAttachments = []
     
@@ -222,10 +222,10 @@ class MessageLogger(commands.Cog):
         
         channels = await self.loadConfig()
 
-        await MessageLogger.processSimpleMsgDelete(channels["simple"], message)
-        await MessageLogger.processDetailedMsgDelete(channels["detailed"], message)
+        await self.processSimpleMsgDelete(channels["simple"], message)
+        await self.processDetailedMsgDelete(channels["detailed"], message)
     
-    async def processSimpleMsgDelete(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, message : discord.message):
+    async def processSimpleMsgDelete(self, channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, message : discord.message):
         # Create corresponding embeds
         simpleEmbed = discord.Embed(
             title="#" + message.channel.name,
@@ -251,7 +251,7 @@ class MessageLogger(commands.Cog):
 
         return await channel.send(embed=simpleEmbed, files=attachments)
 
-    async def processDetailedMsgDelete(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, message : discord.message):
+    async def processDetailedMsgDelete(self, channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, message : discord.message):
         detailedEmbed = discord.Embed(
             title=message.author.display_name + " | #" + message.channel.name,
             url=message.jump_url,
@@ -305,8 +305,69 @@ class MessageLogger(commands.Cog):
             await newMessage.delete()
         await interaction.response.send_message("Az üzenet törölve!", ephemeral=True)
     
-    async def get_joined_date(self, interaction: discord.Interaction, member: discord.Member):
-        await interaction.response.send_message(f"Member joined: {member.joined_at}")
+    async def processDetailedRoleUpdate(self, channel: discord.TextChannel, before: discord.Member, after: discord.Member):
+        embed = discord.Embed(
+            title="Rangok változása",
+            color=after.color, # Display color
+            timestamp=datetime.datetime.now()
+        )
+        embed.set_author(
+            name=after.name,
+            icon_url=after.avatar.url,
+            url="https://discord.com/users/" + str(after.id)
+        )
+        embed.set_footer(
+            text="Felhasználó ID: " + after.id
+        )
+        del before.roles[0]
+        del after.roles[0]
+        roleNamesBefore = ", ".join(["<@&" + str(x.id) + ">" for x in before.roles])
+        roleNamesAfter = ", ".join(["<@&" + str(x.id) + ">" for x in after.roles])
+        
+        if len(roleNamesBefore) > 1024:
+            roleNamesBefore = "(túl sok a megjelenítéshez.)"
+        if len(roleNamesAfter) > 1024:
+            roleNamesAfter = "(túl sok a megjelenítéshez.)"
+        
+        difference = []
+        if len(before.roles) > len(after.roles):
+            roleText = "Eltávolított rangok"
+            for role in before.roles:
+                if role not in after.roles:
+                    difference.append(role)
+        else:
+            roleText = "Hozzáadott rangok"
+            for role in after.roles:
+                if role not in before.roles:
+                    difference.append(role)
+        differenceText = ", ".join(["<@&" + str(x.id) + ">" for x in difference])
+        
+        if len(differenceText) > 1024:
+            differenceText = "(túl sok a megjelenítéshez.)"
+        
+        embed.add_field(
+            name=roleText + f" ({len(difference)})",
+            value=differenceText,
+            inline=False
+        )
+        
+        embed.add_field(
+            name=f"Eddigi rangok ({len(before.roles)})",
+            value=roleNamesBefore
+        )
+        embed.add_field(
+            name=f"Jelenlegi rangok ({len(after.roles)})",
+            value=roleNamesAfter
+        )
+        
+        await channel.send(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        if len(before.roles) == len(after.roles): return
+        channels = await self.loadConfig()
+
+        await self.processDetailedRoleUpdate(channels["role"], before, after)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(MessageLogger(bot))
