@@ -316,7 +316,7 @@ class MessageLogger(commands.Cog):
     
     @commands.Cog.listener()
     async def on_member_update(member, before: discord.Member, after: discord.Member):
-        print("Before: ss")
+        print("Before: ")
         print(before.roles)
         print("")
         print("After: ")
