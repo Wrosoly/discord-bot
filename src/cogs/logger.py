@@ -315,13 +315,12 @@ class MessageLogger(commands.Cog):
         await interaction.response.send_message(f"Member joined: {member.joined_at}")
     
     @commands.Cog.listener()
-    async def on_member_update(member, before: discord.Member, after: discord.Member):
-        print("Before: ")
-        print(before.roles)
-        print("")
-        print("After")
-        print(after.roles)
-    
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        if len(before.roles) == len(after.roles): return
+        channels = await self.loadConfig()
+
+        await self.processDetailedRoleUpdate(channels["role"], before, after)
+
     async def processDetailedRoleUpdate(self, channel: discord.TextChannel, before: discord.Member, after: discord.Member):
         embed = discord.Embed(
             title="Rangok változása",
@@ -380,11 +379,41 @@ class MessageLogger(commands.Cog):
         await channel.send(embed=embed)
 
     @commands.Cog.listener()
-    async def on_member_update(self, before: discord.Member, after: discord.Member):
-        if len(before.roles) == len(after.roles): return
+    async def on_member_join(self, member: discord.Member):
+        if member.bot: return
+            
         channels = await self.loadConfig()
+        
+        await MessageLogger.processMemberJoinLeftLog(channels["member-join-left"], member, True)
+    
+    @commands.Cog.listener() 
+    async def on_member_remove(self, member: discord.Member):
+        if member.bot: return
+            
+        channels = await self.loadConfig()
+        
+        await MessageLogger.processMemberJoinLeftLog(channels["member-join-left"], member, False)
 
-        await self.processDetailedRoleUpdate(channels["role"], before, after)
+    async def processMemberJoinLeftLog(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, member : discord.Member, joined : bool):
+        # Create corresponding embeds
+        memberJoinEmbed = discord.Embed(
+            title = "Felhasználó" + (" belépett" if joined else " kilépett"),
+            color = member.color, # Display color
+            timestamp = member.joined_at
+        )
 
+        memberJoinEmbed.set_footer(text = "Rang: " + member.top_role.name)
+        memberJoinEmbed.set_author(
+            name = member.name,
+            icon_url = member.avatar.url
+        )
+
+        memberJoinEmbed.add_field(
+            name="Felhasználói adatok:",
+            value=f"Nickname: `{member.display_name}`\nFelhasználónév: `{member.name}`\nID: `{member.id}`"
+        )
+
+        return await channel.send(embed=memberJoinEmbed)
+    
 async def setup(bot: commands.Bot):
     await bot.add_cog(MessageLogger(bot))
