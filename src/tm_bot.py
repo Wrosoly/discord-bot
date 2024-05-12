@@ -8,13 +8,19 @@ from config import path
 class TM(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="tm!", help_command=None, intents=discord.Intents.all())
+        load_dotenv()
+        
+        self.env = {
+            "TOKEN": os.getenv("TOKEN")
+        }
 
     async def on_ready(self):   
         logging.info(f"Bot connected as {self.user.name}")
     
     async def load_cogs(self):
         for cog in os.listdir(path["COGS"]):
-            if cog.endswith(".py") == False: continue
+            if cog.endswith(".py") == False: 
+                continue
              
             try:
                 cog_name = cog[:-3]
@@ -29,13 +35,9 @@ class TM(commands.Bot):
     
     def start_bot(self):
         print("Starting bot...")
-        load_dotenv()
-        
-        env = {
-            "TOKEN": os.getenv("TOKEN")
-        }
 
-        self.run(env["TOKEN"])
+
+        self.run(self.env["TOKEN"])
 
 class BotApp():
     def __init__(self):

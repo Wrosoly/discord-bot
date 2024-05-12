@@ -17,7 +17,7 @@ class MessageLogger(commands.Cog):
         print("added ctx menu")
         self.bot.tree.add_command(ctx_menu)
 
-    async def loadConfig(self):
+    async def getLogChannels(self):
         with open("config.yaml", "r") as file: # Loads config from config.yaml
             config = yaml.safe_load(file)
             
@@ -30,7 +30,7 @@ class MessageLogger(commands.Cog):
     async def on_message(self, message: discord.Message):
         if message.author.bot: return
             
-        channels = await self.loadConfig()
+        channels = await self.getLogChannels()
         
         await MessageLogger.processSimpleMsgLog(channels["simple"], message)
         await MessageLogger.processDetailedMsgLog(channels["detailed"], message)
@@ -39,14 +39,15 @@ class MessageLogger(commands.Cog):
     async def processSimpleMsgLog(channel : discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread, message : discord.message):
         # Create corresponding embeds
         simpleEmbed = discord.Embed(
-            title="#" + message.channel.name,
-            url=message.jump_url, # A direct link to the message
-            description=message.content,
-            color=message.author.color, # Display color
-            timestamp=message.created_at
+            title = "#" + message.channel.name,
+            url = message.jump_url, # A direct link to the message
+            description = message.content,
+            color = message.author.color, # Display color
+            timestamp = message.created_at
         )
 
         simpleEmbed.set_footer(text="Rang: " + message.author.top_role.name)
+
         simpleEmbed.set_author(
             name=message.author.name,
             icon_url=message.author.avatar.url
@@ -99,7 +100,7 @@ class MessageLogger(commands.Cog):
     async def on_message_edit(self, before: discord.Message, after: discord.Message):
         if before.author.bot: return
             
-        channels = await self.loadConfig()
+        channels = await self.getLogChannels()
 
         await MessageLogger.processSimpleMsgEdit(channels["simple"], before, after)
         await MessageLogger.processsDetailedMsgEdit(channels["detailed"], before, after)
@@ -220,7 +221,7 @@ class MessageLogger(commands.Cog):
     async def on_message_delete(self, message: discord.Message):
         if message.author.bot: return
         
-        channels = await self.loadConfig()
+        channels = await self.getLogChannels()
 
         await MessageLogger.processSimpleMsgDelete(channels["simple"], message)
         await MessageLogger.processDetailedMsgDelete(channels["detailed"], message)
@@ -285,7 +286,7 @@ class MessageLogger(commands.Cog):
     
     async def delete_message(self, interaction: discord.Interaction, message: discord.Message):
         #TODO: Move to PenaltySystem cog
-        return
+        #return
         print("delete message ctx menu")
         if message.author.id != self.bot.user.id:
             if message.author.top_role < interaction.user.top_role:
@@ -302,11 +303,25 @@ class MessageLogger(commands.Cog):
             print(data)
             channel: discord.TextChannel | discord.Thread = message.guild.get_channel(int(data[5]))
             newMessage: discord.Message = await channel.fetch_message(int(data[6]))
+
+            if(newMessage == None): 
+                interaction.response.send_message("Az üzenetet már törölték", ephemeral=True)
+                return
+            
             await newMessage.delete()
         await interaction.response.send_message("Az üzenet törölve!", ephemeral=True)
     
     async def get_joined_date(self, interaction: discord.Interaction, member: discord.Member):
         await interaction.response.send_message(f"Member joined: {member.joined_at}")
+    
+    @commands.Cog.listener()
+    async def on_member_update(member, before: discord.Member, after: discord.Member):
+        print("Before: ")
+        print(before.roles)
+        print("")
+        print("After")
+        print(after.roles)
+    
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(MessageLogger(bot))
