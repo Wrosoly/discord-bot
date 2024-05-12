@@ -23,7 +23,8 @@ class MessageLogger(commands.Cog):
         return  {
             "simple": await self.bot.fetch_channel(config["log"]["simple"]),
             "detailed": await self.bot.fetch_channel(config["log"]["detailed"]),
-            "role": await self.bot.fetch_channel(config["log"]["role"])
+            "role": await self.bot.fetch_channel(config["log"]["role"]),
+            "member-join-left": await self.bot.fetch_channel(config["log"]["member-join-left"])
         }
     
     @commands.Cog.listener()
@@ -317,7 +318,7 @@ class MessageLogger(commands.Cog):
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
         if len(before.roles) == len(after.roles): return
-        channels = await self.loadConfig()
+        channels = await self.getLogChannels()
 
         await self.processDetailedRoleUpdate(channels["role"], before, after)
 
@@ -333,7 +334,7 @@ class MessageLogger(commands.Cog):
             url="https://discord.com/users/" + str(after.id)
         )
         embed.set_footer(
-            text="Felhasználó ID: " + after.id
+            text="Felhasználó ID: " + str(after.id)
         )
         del before.roles[0]
         del after.roles[0]
@@ -382,7 +383,7 @@ class MessageLogger(commands.Cog):
     async def on_member_join(self, member: discord.Member):
         if member.bot: return
             
-        channels = await self.loadConfig()
+        channels = await self.getLogChannels()
         
         await MessageLogger.processMemberJoinLeftLog(channels["member-join-left"], member, True)
     
@@ -390,7 +391,7 @@ class MessageLogger(commands.Cog):
     async def on_member_remove(self, member: discord.Member):
         if member.bot: return
             
-        channels = await self.loadConfig()
+        channels = await self.getLogChannels()
         
         await MessageLogger.processMemberJoinLeftLog(channels["member-join-left"], member, False)
 
