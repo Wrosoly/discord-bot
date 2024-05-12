@@ -319,7 +319,7 @@ class MessageLogger(commands.Cog):
         print("Before: ")
         print(before.roles)
         print("")
-        print("After")
+        print("After: ")
         print(after.roles)
     
     async def processDetailedRoleUpdate(self, channel: discord.TextChannel, before: discord.Member, after: discord.Member):
