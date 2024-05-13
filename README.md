@@ -3,7 +3,8 @@
 ## Installation
 
 ```bash
-python -m venv /path/to/env
+python -m venv path/to/env
+source path/to/env/bin/activate
 pip install -r requirements.txt
 ```
 
