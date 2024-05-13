@@ -25,10 +25,10 @@ class NewsListener(commands.Cog):
         with open("rss_urls.txt", "r") as file:
             self.rss_urls = [url.strip() for url in file if url.strip() != '']
 
-        self.rss_latest_date = {url:None for url in self.rss_urls} # kind of a cursor; for detecting new posts
+        self.rss_latest_date = {} # kind of a cursor; for detecting new posts
 
     def get_fresh_entries(self, rss_data):
-        if self.rss_latest_date[rss_data.url] is None:
+        if rss_data.url not in self.rss_latest_date:
             result = rss_data.entries
         else:
             result = list(takewhile(
@@ -48,40 +48,37 @@ class NewsListener(commands.Cog):
             await self.post_entry(rss_entry)
             return
         
-        full_content = self.fetch_entry(rss_entry)
-        
-        if self.is_keyphrase_found(full_content):
-            await self.post_entry(rss_entry)
+        # One could also search in the content by resolving .link but that's costly
 
-    def fetch_entry(self, rss_entry):
-        # TODO: do some actual HTML parsing
-        return str(requests.get(rss_entry.link).content) # consider using some async library instead of request
     
     async def post_entry(self, rss_entry):
         article_channel: discord.ForumChannel = await self.bot.fetch_channel(self.article_channel_id)
-        await article_channel.create_thread(name=rss_entry.link)
+        await article_channel.create_thread(name=rss_entry.title[:100], content=rss_entry.link) # 100 is the max length for forum titles
 
     def is_keyphrase_found(self, haystack):
         for needle in self.keyphrases:
-            if re.search(rf"\b{re.escape(needle)}\b"):
+            if re.search(rf"(?i)\b{re.escape(needle)}\b", haystack):
                 return True
         return False
 
+    def cog_load(self):
+        self.poll_news.start()
 
     def cog_unload(self):
-        self.pollNews.cancel()
+        self.poll_news.cancel()
 
     @tasks.loop(**updatePeriod)
-    async def pollNews(self):
+    async def poll_news(self):
         for url in self.rss_urls:
             try:
                 data = feedparser.parse(url)
                 fresh_entries = self.get_fresh_entries(data)
+                logging.info(f'Got fresh entries from {url}: {[entry.title for entry in fresh_entries]}')
                 for entry in fresh_entries:
                     await self.search_keyphrase_and_send(entry)
 
             except Exception as e:
-                logging.warning(f"Error while processing RSS URL {url}: {e}")
+                logging.warning(f"Error while processing RSS URL {url}: {e.with_traceback()}")
 
     
 async def setup(bot: commands.Bot):
