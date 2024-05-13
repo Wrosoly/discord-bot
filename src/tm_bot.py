@@ -45,4 +45,4 @@ class BotApp():
             bot = TM()
             bot.start_bot()
         except:
-            print("Application crashed")
+            logging.exception("Application crashed")
