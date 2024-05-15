@@ -3,7 +3,7 @@ from discord import Embed, ButtonStyle, NotFound
 from discord.ui import Button, View
 from dotenv import dotenv_values
 from datetime import datetime
-
+import yaml
 
 # This cog listens for messages in the announcements new channel and sends them to the validation channel.
 # It adds a button to the message that allows the validators to approve the message.
@@ -12,9 +12,20 @@ class AnnouncementCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    async def getConfig():
+        with open("config.yaml", "r") as file: # Loads config from config.yaml
+            config = yaml.safe_load(file)
+            
+        return  {
+            "CHANNEL_ID_ANNOUNCEMENTS_NEW":         config["announcments"]["new"],
+            "CHANNEL_ID_ANNOUNCEMENTS":             config["announcments"]["main"],
+            "CHANNEL_ID_ANNOUNCEMENTS_VALIDATE":    config["announcments"]["validate"],
+            "ROLE_ID_ANNOUNCEMENT_VALIDATORS":      config["announcments"]["validator_admin_role"]
+        }
+
     @commands.Cog.listener()
     async def on_message(self, message):
-        config = dotenv_values(".env")
+        config = await AnnouncementCog.getConfig()
 
         if message.channel.id == int(config["CHANNEL_ID_ANNOUNCEMENTS_NEW"]):
             if message.author == self.bot.user:
