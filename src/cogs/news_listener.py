@@ -19,10 +19,10 @@ class NewsListener(commands.Cog):
             
         self.article_channel_id = config["news-listener"]["articles-forum"]
 
-        with open("keyphrases.txt", "r") as file:
+        with open("RSS/keyphrases.txt", "r") as file:
             self.keyphrases = [phrase.strip() for phrase in file if phrase.strip() != '']
 
-        with open("rss_urls.txt", "r") as file:
+        with open("RSS/rss_urls.txt", "r") as file:
             self.rss_urls = [url.strip() for url in file if url.strip() != '']
 
         self.rss_latest_date = {} # kind of a cursor; for detecting new posts
