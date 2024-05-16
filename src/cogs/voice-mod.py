@@ -12,7 +12,7 @@ class VoiceMod(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.state = False
         self.voice_client = None
-        self.faker = Faker('hu_HU')  # Magyar lokalizáció beállítása
+        self.faker = Faker('hu_HU')
         self.bot: commands.Bot = bot
 
     async def getVoiceChannels(self) -> dict:
@@ -30,7 +30,8 @@ class VoiceMod(commands.Cog):
         return False
 
     def get_random_name(self) -> str:
-        random_name = self.faker.first_name()  # Véletlenszerű magyar keresztnév generálása
+        # ha nem akarunk fakert használni, itt át lehet írni
+        random_name = self.faker.first_name()
         return random_name
 
     @commands.Cog.listener()
@@ -51,7 +52,6 @@ class VoiceMod(commands.Cog):
                         self.state = False
                         return
 
-        # Ha a felhasználó kilépett az adott csatornáról
         if before.channel is not None and before.channel.id == target_channel.id:
             if after.channel is None or after.channel.id != target_channel.id:
                 members = target_channel.members
