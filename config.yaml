@@ -10,3 +10,6 @@ announcments:
   new: 1239266827134042142
   validate: 1239266990892257360
   validator_admin_role: 1237380061578137683
+servers:
+  test: 123456
+  main: 78910
